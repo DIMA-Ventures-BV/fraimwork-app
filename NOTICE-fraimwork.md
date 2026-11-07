@@ -12,5 +12,9 @@ Changes in this fork (branch `fraimwork`), as required by GPL-3.0 section 5(a):
   `scripts/fraimwork-check-brand.sh` fails the build when user-visible text still says cmux.
   New placeholder icon drawn by `scripts/fraimwork-icon.swift`. The bundle adds a `fraimwork` command
   next to the upstream `cmux` command.
+- 2026-11-07: turned off upstream services at build time with `scripts/fraimwork-offline.py`: no PostHog key,
+  no Sentry DSN, anonymous telemetry off by default, no Sparkle feed or automatic update checks, cmux.com
+  endpoints replaced by `upstream.invalid`, release links pointing at this fork.
+  `scripts/fraimwork-check-offline.sh` fails the build when those keys or endpoints are still in a binary.
 
 The BUSL-1.1 directories listed in `LICENSE` are not built or shipped by this fork.
