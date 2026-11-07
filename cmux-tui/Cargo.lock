@@ -2111,6 +2111,7 @@ dependencies = [
  "subsecond",
  "tokio",
  "tokio-tungstenite",
+ "toml",
  "tungstenite",
  "uds_windows",
  "url",
