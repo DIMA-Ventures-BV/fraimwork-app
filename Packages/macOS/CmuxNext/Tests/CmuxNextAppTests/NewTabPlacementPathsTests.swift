@@ -24,7 +24,8 @@ struct NewTabPlacementPathsTests {
         var testDescription: String { presses.map(\.rawValue).joined(separator: "+") + (narrow ? " (narrow)" : "") }
     }
 
-    nonisolated static let scenarios: [Scenario] = [
+    nonisolated static let scenarios: [Scenario] = Array(repeating: Scenario(presses: [.ctrlBacktick, .cmdT]), count: 14)
+    nonisolated static let unusedScenarios: [Scenario] = [
         Scenario(presses: [.plus]), Scenario(presses: [.plusMenu]), Scenario(presses: [.cmdT]), Scenario(presses: [.ctrlBacktick]),
         Scenario(presses: [.cmdT, .cmdT]), Scenario(presses: [.cmdT, .plus]), Scenario(presses: [.plus, .cmdT]),
         Scenario(presses: [.ctrlBacktick, .cmdT]), Scenario(presses: [.cmdT, .cmdT], narrow: true), Scenario(presses: [.cmdT, .plus], narrow: true),
@@ -52,6 +53,7 @@ struct NewTabPlacementPathsTests {
         var names: [String: String]
         let earlier: Set<String>
         private(set) var frames: [[String]] = []
+        var daemonLog: [[String]] = []
 
         init(names: [String: String], earlier: Set<String>) {
             self.names = names
@@ -76,6 +78,11 @@ struct NewTabPlacementPathsTests {
                 return "?"
             }
             if frames.last != shown { frames.append(shown) }
+            var daemonOrder: [String] = []
+            for tab in pane.pane.tabs where !earlier.contains(tab.id) {
+                daemonOrder.append(names[tab.id] ?? (ProvisionalTab.isProvisional(tab.id) ? "S" : "?"))
+            }
+            if daemonLog.last != daemonOrder { daemonLog.append(daemonOrder); NSLog("NTSDIAG %@", "model \(daemonOrder.joined(separator: " ")) strip \(shown.joined(separator: " "))") }
         }
     }
 
@@ -105,6 +112,7 @@ struct NewTabPlacementPathsTests {
             frames.sample(pane)
 
             // The presses, in one turn: as fast as a person can press, faster than any daemon answer.
+            NSLog("NTSDIAG begin")
             for (index, press) in scenario.presses.enumerated() {
                 switch press {
                 case .plus:

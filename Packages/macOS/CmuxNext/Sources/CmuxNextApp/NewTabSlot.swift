@@ -3,6 +3,7 @@ import CmuxNextCompat
 import CmuxNextDaemon
 import CmuxNextSettings
 import CmuxNextWakeups
+import Foundation; func ntsDiag(_ s: String) { NSLog("NTSDIAG %@", s) }
 
 /// Where a new tab the user opens goes (cx-d0d.58). Cmd-T and the other new-tab keys follow `tabs.newTabPosition`: right
 /// after the selected tab by default (Lawrence 2026-10-20), else at the end or the start (after the pinned tabs); the strip's
@@ -132,6 +133,7 @@ enum NewTabSlot {
             let found = await listed.value
             bound.cancel()
             _ = await earlier?.value // its own list wait, then its move's reply
+            let diag = locate(); let diagTabs: String = diag?.1.tabs.map(\.id).joined(separator: ",") ?? "-"; let diagFinal: Int? = diag.flatMap { d in index(d.1.tabs.filter { $0 !== d.0 }) }; ntsDiag("place found=\(found) tab=\(diag?.0.id ?? "-") tabs=\(diagTabs) final=\(String(describing: diagFinal))")
             guard found, let located = locate(), case let (tab, pane) = located, let final = index(pane.tabs.filter { $0 !== tab }),
                   pane.tabs.firstIndex(where: { $0 === tab }) != final else { return nil }
             await withCheckedContinuation { landed in TabMoves.move(tab, to: pane, index: final, services: services) { _ in landed.resume() } }
@@ -147,7 +149,7 @@ enum NewTabSlot {
     static func slot(for target: Target, in others: [TabModel], pane: PaneModel? = nil, open: DemandTimer? = nil, services: AppServices? = nil) -> Int? {
         switch target {
         // The open's live anchor first (re-anchored, after an earlier open's tab: Ctrl-` then Cmd-T), then the one it began with.
-        case .after(let anchor): pane.flatMap { NewTabSuccession.rebasedSlot(in: $0, by: open, among: others) } ?? others.newTabSlot(after: anchor)
+        case .after(let anchor): { ntsDiag("slot anchor=\(anchor.id) rebased=\(String(describing: pane.flatMap { NewTabSuccession.rebasedSlot(in: $0, by: open, among: others) })) direct=\(String(describing: others.newTabSlot(after: anchor))) others=\(others.map(\.id).joined(separator: ","))"); return 0 }() == 1 ? nil : pane.flatMap { NewTabSuccession.rebasedSlot(in: $0, by: open, among: others) } ?? others.newTabSlot(after: anchor)
             ?? pane.flatMap { pane in services?.daemon(for: pane).store.creations.replacement(ofStandIn: anchor.id, in: pane).flatMap { others.newTabSlot(after: $0) } }
         case .start: others.prefix { $0.pinned }.count
         }

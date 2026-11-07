@@ -77,7 +77,7 @@ struct NewTabSuccession {
     /// Where `open`'s new tab goes among `others` (the pane's tabs but it): after the tab the strip shows it after (re-anchored when its anchor
     /// closed, the daemon's tab for a stand-in); nil once the open ended or that tab is not listed.
     static func rebasedSlot(in pane: PaneModel, by open: DemandTimer?, among others: [TabModel]) -> Int? {
-        guard let open = active[ObjectIdentifier(pane)]?.first(where: { $0.expiry === open }) else { return nil }
+        guard let open = active[ObjectIdentifier(pane)]?.first(where: { $0.expiry === open }) else { ntsDiag("rebased: no open"); return nil }; ntsDiag("rebased before=\(open.before?.rawValue ?? "nil") resolved=\(open.before.map { open.resolved($0, in: pane).rawValue } ?? "nil")")
         guard let before = open.before.map({ open.resolved($0, in: pane) }) else { return others.prefix { $0.pinned }.count }
         return others.first { $0.id == before.rawValue }.flatMap { others.newTabSlot(after: $0) }
     }
