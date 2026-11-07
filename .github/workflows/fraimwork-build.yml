@@ -1,0 +1,85 @@
+name: fraimwork build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fraimwork]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fraimwork-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      # The upstream scripts treat any owner other than manaflow-ai as a fork.
+      CMUX_SKIP_ZIG_BUILD: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: ./scripts/select-ci-xcode.sh
+
+      - name: Download Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - name: Install Rust
+        run: ./scripts/install-rust-ci.sh
+
+      - name: Download pre-built GhosttyKit (sha256-pinned)
+        run: ./scripts/download-prebuilt-ghosttykit.sh
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .spm-cache
+          key: spm-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-
+
+      - name: Build app (Release, arm64)
+        run: |
+          set +e
+          xcodebuild -scheme cmux -configuration Release -derivedDataPath build \
+            -destination 'generic/platform=macOS' \
+            -clonedSourcePackagesDirPath .spm-cache \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
+          rc=$?
+          grep -E 'error:|\*\* BUILD' build.log | tail -60
+          exit "$rc"
+
+      - name: Ad-hoc sign and zip
+        run: |
+          set -euo pipefail
+          app="$(find build/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)"
+          test -n "$app"
+          codesign --force --deep -s - "$app"
+          mkdir -p dist
+          ditto -c -k --keepParent "$app" "dist/$(basename "$app" .app)-arm64.zip"
+          ls -la dist
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fraimwork-app-arm64
+          path: dist/*.zip
+          retention-days: 14
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
