@@ -75,6 +75,23 @@ def edit_project(root):
     return f"project: {len(PROJECT_EDITS)} settings"
 
 
+STATE_DIR_FILE = "Packages/macOS/CmuxSettings/Sources/CmuxSettings/SocketControl/CmuxStateDirectory.swift"
+
+
+def edit_state_dir(root):
+    """Own socket, socket marker and password under ~/.local/state/fraimwork, so stock cmux keeps its own."""
+    path = root / STATE_DIR_FILE
+    text = path.read_text()
+    old = 'public static let directoryName = "cmux"'
+    new = f'public static let directoryName = "{BRAND}"'
+    if new in text:
+        return "state dir: already renamed"
+    if text.count(old) != 1:
+        sys.exit(f"{STATE_DIR_FILE}: expected 1 x {old!r}, found {text.count(old)}")
+    path.write_text(text.replace(old, new))
+    return f"state dir: ~/.local/state/{BRAND}"
+
+
 def edit_info_plist(root):
     path = root / "Resources/Info.plist"
     lines = path.read_text().splitlines(keepends=True)
@@ -108,7 +125,7 @@ def edit_catalogs(root):
 
 def main():
     root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-    for report in (edit_project(root), edit_info_plist(root), edit_catalogs(root)):
+    for report in (edit_project(root), edit_state_dir(root), edit_info_plist(root), edit_catalogs(root)):
         print(report)
 
 
