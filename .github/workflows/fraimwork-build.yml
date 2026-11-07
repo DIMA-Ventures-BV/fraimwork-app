@@ -20,6 +20,8 @@ jobs:
     env:
       # The upstream scripts treat any owner other than manaflow-ai as a fork.
       CMUX_SKIP_ZIG_BUILD: "1"
+      # Permission prompts of the bundled Computer Use helper.
+      CMUX_CUA_HELPER_DISPLAY_NAME: "fraimwork Computer Use"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -49,6 +51,9 @@ jobs:
           key: spm-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-
 
+      - name: Rename what users see to fraimwork
+        run: python3 scripts/fraimwork-rebrand.py .
+
       - name: Build app (Release, arm64)
         run: |
           set +e
@@ -61,11 +66,19 @@ jobs:
           grep -E 'error:|\*\* BUILD' build.log | tail -60
           exit "$rc"
 
+      - name: Add the fraimwork command and check the brand
+        run: |
+          set -euo pipefail
+          app=build/Build/Products/Release/fraimwork.app
+          test -x "$app/Contents/Resources/bin/cmux"
+          ln -sf cmux "$app/Contents/Resources/bin/fraimwork"
+          scripts/fraimwork-check-brand.sh "$app" > brand.log 2>&1 || { tail -40 brand.log; echo "$(grep -c '^BRAND' brand.log) user-visible cmux strings"; exit 1; }
+          cat brand.log
+
       - name: Ad-hoc sign and zip
         run: |
           set -euo pipefail
-          app="$(find build/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)"
-          test -n "$app"
+          app=build/Build/Products/Release/fraimwork.app
           codesign --force --deep -s - "$app"
           mkdir -p dist
           ditto -c -k --keepParent "$app" "dist/$(basename "$app" .app)-arm64.zip"
@@ -81,5 +94,7 @@ jobs:
         if: failure()
         with:
           name: build-log
-          path: build.log
+          path: |
+            build.log
+            brand.log
           retention-days: 7
