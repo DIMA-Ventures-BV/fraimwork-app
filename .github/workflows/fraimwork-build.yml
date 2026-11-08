@@ -51,6 +51,9 @@ jobs:
           key: spm-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-
 
+      - name: Test the CLI brand filter
+        run: scripts/fraimwork-cli-brand-test.sh
+
       - name: Rename what users see to fraimwork
         run: python3 scripts/fraimwork-rebrand.py .
 
@@ -78,6 +81,8 @@ jobs:
           scripts/fraimwork-check-brand.sh "$app" > brand.log 2>&1 || { tail -40 brand.log; echo "$(grep -c '^BRAND' brand.log) user-visible cmux strings"; exit 1; }
           cat brand.log
           scripts/fraimwork-check-offline.sh "$app"
+          "$app/Contents/Resources/bin/fraimwork" --help > cli-help.txt
+          if perl -ne 'exit 1 if /(?<![\w.\/~-])cmux(?![\w\/-])(?!\.\w)/i; END { exit 0 }' cli-help.txt; then echo "OK: fraimwork --help names fraimwork"; else grep -in cmux cli-help.txt | head -20; exit 1; fi
 
       - name: Ad-hoc sign and zip
         run: |

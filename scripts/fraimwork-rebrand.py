@@ -92,6 +92,30 @@ def edit_state_dir(root):
     return f"state dir: ~/.local/state/{BRAND}"
 
 
+CLI_MAIN = "CLI/cmux.swift"
+CLI_HELPER = "scripts/fraimwork-cli-brand.swift"
+CLI_EDITS = [
+    ("try await cli.run()", "try await FraimworkOutputBrand.run { try await cli.run() }"),
+    ('"Error: \\(CLITerminalText.printable(String(describing: error), keepingLineBreaks: true))\\n"',
+     'FraimworkOutputBrand.brand("Error: \\(CLITerminalText.printable(String(describing: error), keepingLineBreaks: true))\\n")'),
+]
+
+
+def edit_cli(root):
+    """Help and error text name fraimwork when the CLI runs as `fraimwork`."""
+    path = root / CLI_MAIN
+    text = path.read_text()
+    if "enum FraimworkOutputBrand" in text:
+        return "cli: already branded"
+    for old, new in CLI_EDITS:
+        if text.count(old) != 1:
+            sys.exit(f"{CLI_MAIN}: expected 1 x {old!r}, found {text.count(old)}")
+        text = text.replace(old, new)
+    text += "\n" + (root / CLI_HELPER).read_text()
+    path.write_text(text)
+    return "cli: help and errors renamed under the fraimwork name"
+
+
 def edit_info_plist(root):
     path = root / "Resources/Info.plist"
     lines = path.read_text().splitlines(keepends=True)
@@ -125,7 +149,7 @@ def edit_catalogs(root):
 
 def main():
     root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-    for report in (edit_project(root), edit_state_dir(root), edit_info_plist(root), edit_catalogs(root)):
+    for report in (edit_project(root), edit_state_dir(root), edit_cli(root), edit_info_plist(root), edit_catalogs(root)):
         print(report)
 
 
